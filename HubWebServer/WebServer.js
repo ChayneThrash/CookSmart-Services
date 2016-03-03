@@ -14,6 +14,11 @@ app.post('/LoadRecipe', function(req, res) {
 
 app.get('/GetDeviceStatus', function(req, res) {
     var status = deviceInterface.getDeviceStatus();
+    res.send(
+    {
+        status: "ok",
+        deviceStatus: status
+    });
 });
 
 app.post('/SetWifiCredentials', function(req, res) {

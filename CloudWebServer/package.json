@@ -12,6 +12,7 @@
     "body-parser": "^1.15.0",
     "express": "^4.13.4",
     "mongodb": "^2.1.7",
-    "password-hash": "~1.2.2"
+    "password-hash": "~1.2.2",
+    "client-sessions": "~0.7.0"
   }
 }

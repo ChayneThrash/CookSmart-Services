@@ -1,93 +1,81 @@
 var express = require('express');
-var MongoClient = require('mongodb').MongoClient;
 var assert = require('assert');
 var bodyParser = require('body-parser');
-var app = express();
-var passwordHash = require('password-hash');
-app.use(bodyParser.json()); // allow express to parse json params
+var session = require('client-sessions');
+var CloudDBInterface = require('./CloudMongoInterface.js'); 
 
-app.post('/Login', function(req, res)
-{
-    console.log('Login request occurred');
-    MongoClient.connect('mongodb://127.0.0.1:27017/CookSmartCloud', function(err, db) {
-        assert.equal(null, err);
-        console.log(req.body.createAccount);
-        debugger;
-        var params = {
-            username: req.body.username,
-            password: req.body.password,
-            displayName: req.body.displayName,
-            passwordConfirmation: req.body.passwordConfirmation
-        }
-        if (req.body.createAccount) {
-            createAccount(req.body, db, res);
-        } else {
-            login(req.body, db, res);
-        }
+var app = express();
+app.use(bodyParser.json()); // allow express to parse json params
+app.use(session({
+  cookieName: 'session',
+  secret: 'random_string_goes_here',
+  duration: 30 * 60 * 1000,
+  activeDuration: 24 * 60 * 1000, //24 hours
+}));
+
+var cloudDbInterface = new CloudDBInterface('127.0.0.1', 27017, 'CookSmartCloud');
+
+function isLoggedIn(req, res, next) {
+    if (req.session.user) {
+        next();
+    } else {
+        var response = {
+            status: "fail",
+            message: "must be logged in to access this feature"
+        };
+        res.send(response);
+    }
+}
+
+app.get('/GetRecipes', function(req, res) {
+    var user = (req.session.user === null || req.session.user === undefined) ? null : req.session.user;
+    debugger;
+    cloudDbInterface.getRecipes(user, function(recipes) {
+        res.send({ status: "ok", msg: "", recipes: recipes}); //if we make it this far it succeeded.  
     });
 });
 
-function createAccount(params, db, res) {
-    var response = {
-        status: "ok"
-    };
-    if (!accountParamsValid(params)) {
-        response["message"] = "The fields you entered are invalid.";
-        res.send(response);
-        db.close();
-        return;
+app.post('/Login', function(req, res) {
+    console.log('Login request occurred');
+    req.session.reset(); //session should be reset since the user is no longer logged in if this occurs.
+    if (req.body.createAccount) {
+        createAccount(req.body, res);
+    } else {
+        login(req.body, res);
     }
-    var collection = db.collection('Users');
-    console.log("blah");
-    collection.findOne({ username: params.username }, function(err, item) {
-        if (!item) {
-            console.log("blah");
-            collection.insertOne({ username: params.username, password: passwordHash.generate(params.password), displayName: params.displayName },
-            function(err, result) {
-                if (err !== null || !result) {
-                    response.status = "fail";
-                    response["message"] = "unknown error";
-                } 
-                res.send(response);
-                db.close();
-            });
-        } else {
-            console.log("blah");
-            response.status = "fail";
-            response["message"] = "account already exists";
-            res.send(response);
-            db.close();
-        }
-    });
+});
+
+app.post('/CreateRecipe', isLoggedIn, function(req, res) {
+    console.log('Create recipe request occurred');
+    if (recipeRequestIsValid(req.body)) {
+        var name = req.body.name;
+        var instructions = req.body.instructions;
+        cloudDbInterface.createRecipe(req.session.user, name, instructions, function(result) {
+            var status = (result) ? "ok" : "fail";
+            res.send( { status: status, msg: result.message } );
+        });   
+    }
+});
+
+function createAccount(params, res) {
+    if (!accountParamsValid(params)) {
+        res.send({status: "fail", msg: "The fields you entered are invalid."});
+    } else {
+        cloudDbInterface.createAccount(function(result) {
+            var status = (result.success) ? "ok" : "fail";
+            res.send({status: status, msg: result.msg});
+        });  
+    }
 }
 
-function login(params, db, res) {
-    var response = {
-        status: "ok"
-    };
-    var collection = db.collection('Users');
-    console.log("blah");
-    collection.findOne({ username: params.username }, {}, function(err, item) {
-        debugger;
-        if (err !== null) {
-            response.status = "fail";
-            response["message"] = "unknown error.";
-        } else if (!item || !passwordHash.verify(params.password, item.password)) {
-            response.status = "fail";
-            response["message"] = "user does not exist.";
-        } else {
-            response["user"] = {
-                userId: item._id,
-                username: item.username
-            };
-        }
-        db.close();
-        res.send(response);
+function login(credentials, res) {
+    cloudDbInterface.areLoginCredentialsValid(credentials, function(result) {
+        var status = (result.success) ? "ok" : "fail";
+        res.send({status: status, msg: result.msg});
     });
 }
 
 function accountParamsValid(params) {
-    debugger;
     var usernameValid = (params.username.length > 0) && (params.username.split(' ').length === 1);
     var passwordValid = params.password.length > 0;
     var displayNameValid = params.displayName.length > 0;
