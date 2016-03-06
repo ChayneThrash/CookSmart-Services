@@ -1,3 +1,5 @@
+//var gpio = require("pi-gpio");
+
 var DeviceInterface = {
     
     currentRecipe: [],
