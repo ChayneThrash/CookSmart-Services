@@ -5,7 +5,7 @@ var CookSmartRecipes = {
             return false;
         }
         for(var i = 0; i < recipe.length; ++i) {
-            if (!this.instructionValid) {
+            if (!this.instructionValid(recipe[i])) {
                 return false;
             }
         }
@@ -20,7 +20,6 @@ var CookSmartRecipes = {
             && instruction.hasOwnProperty('waterAmount')
             && this.timeFieldValid(instruction.time)
             && this.heatFieldValid(instruction.heat)
-            && typeof(instruction.stir) === 'boolean'
             && this.cartridgesFieldValid(instruction.cartridges)
             && this.waterAmountFieldValid(instruction.waterAmount);
     },
@@ -36,7 +35,7 @@ var CookSmartRecipes = {
     
     heatFieldValid: function(heat) {
         var allowedHeatSettings = ['Off', 'Warm', 'Low', 'Med-Low', 'Med', 'Med-High', 'High'];
-        return allowedHeatSetings.indexOf(heat) > -1;
+        return allowedHeatSettings.indexOf(heat) > -1;
     },
     
     cartridgesFieldValid: function(cartridges) {
@@ -45,7 +44,7 @@ var CookSmartRecipes = {
             return false;
         }
         for(var i = 0; i < cartridges.length; ++i) {
-            if (cartridges[i] < 1 || cartridges[i] > numCartridges || cartridges[i]) {
+            if (cartridges[i] < 1 || cartridges[i] > numCartridges) {
                 return false;
             }
         }
