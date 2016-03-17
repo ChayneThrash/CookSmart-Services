@@ -132,7 +132,7 @@ var CookSmartRecipes = {
     
     getSerializedInstructionSecondByteField: function(instruction) {
         switch (instruction.type) {
-            case 'Add Water': return (instruction.amount & 3); //amount is 5 bits. Get bits 1 and 0.
+            case 'Add Water': return (instruction.amount & 3) << 6; //amount is 5 bits. Get bits 1 and 0.
             case 'Drop Cartridge': return (instruction.cartridge & 1) << 7; //field is 4 bits. Get bit 0.
             case 'Heat':  //Let it fall through since both use time here.
             case 'Stir': return (instruction.time & 32640) >> 7; //time field is 15 bit. Get bits 14 - 7.

@@ -3,6 +3,7 @@ var assert = require('assert');
 var bodyParser = require('body-parser');
 var deviceInterface = require('./DeviceInterface.js');
 var cookSmartRecipes = require('./CookSmartRecipes.js')
+var wifiConnector = require('./WiFiConnector.js');
 var app = express();
 app.use(bodyParser.json()); // allow express to parse json params
 
@@ -40,7 +41,7 @@ app.get('/GetDeviceStatus', function(req, res) {
 });
 
 app.post('/SetWifiCredentials', function(req, res) {
-
+    wifiConnector.connectToWifi(req.body.ssid, req.body.password, 'WPA', function() {});
 });
 
 app.listen(8081, function () {
