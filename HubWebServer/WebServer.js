@@ -1,10 +1,11 @@
 var express = require('express');
 var assert = require('assert');
 var bodyParser = require('body-parser');
-var deviceInterface = require('./DeviceInterface.js');
+var DeviceInterface = require('./DeviceInterface.js');
 var cookSmartRecipes = require('./CookSmartRecipes.js')
 var wifiConnector = require('./WiFiConnector.js');
 var app = express();
+var deviceInterface = new DeviceInterface();
 app.use(bodyParser.json()); // allow express to parse json params
 
 
@@ -17,6 +18,10 @@ app.post('/LoadRecipe', function(req, res) {
         var serializedData = cookSmartRecipes.serialize(formattedRecipe);
         for(var i = 0; i < serializedData.length; ++i) {
             var num = (serializedData[i][2] << 16) + (serializedData[i][1] << 8) + (serializedData[i][0]);
+            var buf = new Buffer([serializedData[i][2], serializedData[i][1], serializedData[i][0]]);
+            console.log(buf.length);
+            deviceInterface.loadSerializedRecipe(buf);
+
             console.log((num).toString(16));
         }
         
