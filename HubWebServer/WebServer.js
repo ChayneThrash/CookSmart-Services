@@ -1,16 +1,14 @@
-var express = require('express');
 var assert = require('assert');
-var bodyParser = require('body-parser');
 var DeviceInterface = require('./DeviceInterface.js');
 var cookSmartRecipes = require('./CookSmartRecipes.js')
 var wifiConnector = require('./WiFiConnector.js');
-var app = express();
 var deviceInterface = new DeviceInterface();
-app.use(bodyParser.json()); // allow express to parse json params
+var ws = require('nodejs-websocket')
 
 
-app.post('/LoadRecipe', function(req, res) {
-    var recipe = req.body.recipe;
+function LoadRecipe(conn, params) {
+    console.log('LoadRecipe');
+    var recipe = params.recipe;
     if (cookSmartRecipes.isValid(recipe)) {
         var formattedRecipe = cookSmartRecipes.format(recipe);
         console.log(JSON.stringify({ formatted: formattedRecipe }));
@@ -25,30 +23,57 @@ app.post('/LoadRecipe', function(req, res) {
             console.log((num).toString(16));
         }
         
-        res.send({
+        conn.send(JSON.stringify({
             status: "ok"
-        });
+        }));
     } else {
-        res.send({
+        conn.send(JSON.stringify({
             status: "fail",
             msg: "inavlid recipe"
-        });
+        }));
     }
-});
+}
 
-app.get('/GetDeviceStatus', function(req, res) {
+function GetDeviceStatus(conn, params) {
+    console.log('Get device status.');
     var status = deviceInterface.getDeviceStatus();
-    res.send(
-    {
+    conn.send(JSON.stringify({
         status: "ok",
         deviceStatus: status
+    }));
+}
+
+function SetWifiCredentials(conn, params) {
+    console.log('set wifi credentials request.');
+    wifiConnector.connectToWifi(params.ssid, params.password, 'WPA', function() {});
+    conn.send(JSON.stringify({status: "ok"}));
+}
+
+function processMessage(conn, params) {
+    switch (params.procedure) {
+        case 'LoadRecipe': LoadRecipe(conn, params); break;
+        case 'GetDeviceStatus': GetDeviceStatus(conn, params); break;
+        case 'SetWifiCredentials': SetWifiCredentials(conn, params); break;
+    }
+}
+
+var deviceId = 'device1'; //hardcoding something here for now.
+function connectToCookSmartServer() {
+    console.log('connecting');
+    var conn = ws.connect('ws://cthrash.local:8082', function(){
+        conn.on('text', function(text){ // going ahead and setting it up to handle connectDevice response.
+            var response = JSON.parse(text);
+            if (response.status === 'ok') {
+                conn.on('text', function(str){
+                    processMessage(conn, JSON.parse(str));
+                });
+            } else {
+                setTimeout(connectToCookSmartServer, msBetweenConnectionAttempts); // failed to connect so set it up to try again.
+            }
+        });
+        conn.send(JSON.stringify({procedure: 'connectDevice', deviceId: deviceId}));
     });
-});
+}
 
-app.post('/SetWifiCredentials', function(req, res) {
-    wifiConnector.connectToWifi(req.body.ssid, req.body.password, 'WPA', function() {});
-});
-
-app.listen(8081, function () {
-    console.log('CookSmart server is listening on port 8081.');
-});
+var msBetweenConnectionAttempts = 10000; //attempt to connect to the server every ten seconds.
+setTimeout(connectToCookSmartServer, msBetweenConnectionAttempts);

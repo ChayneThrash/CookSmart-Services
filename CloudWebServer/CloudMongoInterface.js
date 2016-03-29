@@ -13,6 +13,7 @@ var CloudMongoInterface = function(address, port, dbName) {
  */
 CloudMongoInterface.prototype._getDbInstance = function(next) {
     MongoClient.connect(this.connectionString, function(err, db) {
+        debugger;
         if (err === null) {
             next(db);
         } else {
@@ -33,7 +34,9 @@ CloudMongoInterface.prototype._addUser = function(user, next) {
     var self = this;
     this._getDbInstance(function(db) {
         var collection = self._getDbCollection(db, USER_COLLECTION);
-        collection.insertOne({ username: user.username, password: passwordHash.generate(user.password), displayName: user.displayName }, function(err, item) {
+        debugger;
+        collection.insertOne({ username: user.username, password: passwordHash.generate(user.password), displayName: user.displayName, connectedDevice: null }, function(err, item) {
+            debugger;
             if (err === null) {
                 next(item.insertedCount === 1);
             } else {
@@ -48,7 +51,9 @@ CloudMongoInterface.prototype._getUser = function(username, next) {
     var self = this;
     this._getDbInstance(function(db) {
         var collection = self._getDbCollection(db, USER_COLLECTION);
+        debugger;
         collection.findOne({ username: username }, function(err, item) {
+            debugger;
             if (err === null) {
                 next(item);
             } else {
@@ -68,7 +73,7 @@ CloudMongoInterface.prototype.createAccount = function(user, next) {
                 next(formatResult(result, msg));
             });
        } else {
-            next(false, "user already exists.");
+            next(formatResult(false, "user already exists."));
        }
     });
 };
@@ -152,6 +157,27 @@ CloudMongoInterface.prototype.createRecipe = function(user, recipeName, instruct
         }
     });
 };
+
+CloudMongoInterface.prototype.userIsConnectedToDevice = function(user, deviceId, next) {
+    var self = this;
+    this._getUser(user.username, function(result) {
+        next(result !== null && result.deviceId === deviceId);       
+    });
+}
+
+CloudMongoInterface.prototype.connectUserToDevice = function(user, deviceId, next) {
+    var self = this;
+    this._getDbInstance(function(db) {
+       var collection = self._getDbCollection(db, USER_COLLECTION);
+       collection.update({ _id : user._id }, { "$set" : { connectedDevice : deviceId }}, function(err, result) {
+            if (err == null || result != 1) {
+                next(formatResult(false, "couldn't add device id to account"));
+            } else {
+                next(formatResult(true, ""));
+            }
+       });
+    });
+}
 
 function formatResult(result, msg) {
     return {
