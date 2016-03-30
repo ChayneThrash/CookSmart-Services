@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <!-- WARNING: for iOS 7, remove the width=device-width and height=device-height attributes. See https://issues.apache.org/jira/browse/CB-4323 -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+        <link rel="stylesheet" href="css/index.css">
+        <title>CookSmart Home</title>
+        <script>
+        function recipe(){
+            window.location.href="recipe.html";
+        }
+        </script>
+        
+        <style>
+            ul{
+                list-style-type: none;
+                margin: 0;
+                padding: 0;
+                overflow: hidden;
+                background-color: #287FCC;
+                position: fixed;
+                bottom: 0;
+                width: 100%;
+            }
+            
+            li {
+                float: left;
+                border-right: 1px solid white;
+                
+            }
+            li:last-child {
+                border-right: none;
+            }
+
+            li a {
+                display: block;
+                color: white;
+                text-align: center;
+                padding: 14px 16px;
+                text-decoration: none;
+            }
+
+            li a:hover {
+                background-color: #7BBDF7;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <p class='header-text cooksmart-header'>CookSmart</p>
+            <div class='Hub-connection-status'>
+                <div id="ConnectingToHub">
+                    <img class='connecting-img' style="display: inline; padding-top: 3%; float: right!important;" src='img/spin.svg'>
+                    <p class='header-text connecting-text' style="float: right!important;">Connecting to hub</p>
+                </div>
+                <div id="ConnectedToHub">
+                    <p class='header-text connected-text' style="float: right!important;">Connected</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class='device-status-container'>
+            
+        </div>
+        
+        <div class="refresh-button-container">
+            <span id='refreshButton' class='glyphicon glyphicon-refresh'></span>
+        </div>
+        
+        <button id="startCooking", class="cooknow-button">
+            <p>Start Cooking</p>
+        </button>
+            
+        <button id="recipe" onclick="recipe()", class="currentRecipe-button">
+            <p>Current Recipe</p>
+        </button>
+        
+        <button class="status-button">
+            <img src="img/CookSmart.png" style="display: inline-block; padding: 1px 1px 1px; height: 100%; width: 100%;">
+        </button> 
+        
+        <ul>
+            <li><a class="active" href="index.html">Home</a></li>
+            <li><a href="recipe.html">Cook Book</a></li>
+            <li><a href="status.html">Status</a></li>
+            <li><a href="settings.html">Settings</a></li>
+        </ul>
+        
+        <link rel="stylesheet" href="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.css" />
+        <script src="http://code.jquery.com/jquery-1.11.1.min.js"></script>
+        <!--<script src="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script>-->
+        <script type="text/javascript" src="js/index.js"></script>
+        <script type="text/javascript">
+            app.initialize();
+        </script>
+    </body>
+</html>

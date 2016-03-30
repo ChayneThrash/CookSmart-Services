@@ -1,0 +1,32 @@
+html, body {
+    background: #A1C8ED;
+    margin: 0;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    height: 100%;
+    margin: 0;
+}
+
+.header {
+    width: 100%;
+    height: 7%;
+    background: #287FCC;
+    position: fixed;
+}
+
+.header-text {
+    color: white;
+}
+
+.cooksmart-header {
+    height: 100%;
+    float: left;
+    display: inline;
+    font-family: 'Atomic Age', cursive;
+    font-weight: bold;
+    font-size: xx-large;
+}
+
+.connected-text {
+    display: inline;
+}

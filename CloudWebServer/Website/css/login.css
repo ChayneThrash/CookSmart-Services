@@ -1,0 +1,81 @@
+html, body {
+  background: linear-gradient(#5B9BD5, #C2DAEF);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  height: 100%;
+  margin: 0;
+}
+
+.logo-container {
+  height: 30%;
+  width: 80%;
+  margin-left: 10%;
+  margin-right: 10%;
+  font-family: cursive;
+  text-align: center;
+  position: relative;
+}
+
+::-webkit-input-placeholder { /* Chrome/Opera/Safari */
+  color: black;
+}
+::-moz-placeholder { /* Firefox 19+ */
+  color: black;
+}
+:-ms-input-placeholder { /* IE 10+ */
+  color: black;
+}
+:-moz-placeholder { /* Firefox 18- */
+  color: black;
+}
+
+::placeholder {
+  color: black;
+}
+
+input:focus {
+  outline: none;
+}
+
+.logo {
+  margin: 0;
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 450%;
+}
+
+.login-form-container {
+  margin-left: 10%;
+  margin-right: 10%;
+}
+
+.login-text-box {
+  display: block;
+  background: transparent;
+  border: none;
+  color: black;
+  border-bottom: 2px solid black;
+  width: 100%;
+  font-size: 150%;
+}
+
+.login-form-button {
+  display: block;
+  margin-left: 10%;
+  margin-right: 10%;
+  width: 80%;
+  margin-top: 6%;
+  font-size: 250%;
+  letter-spacing: 5px;
+}
+
+#login-submit-button {
+  
+}
+
+#login-create-button {
+  background: transparent;
+  color: black;
+  border-color: black;
+}
