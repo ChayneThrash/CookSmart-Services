@@ -1,19 +1,45 @@
 var express = require('express');
+var expressSession = require('express-session');
 var assert = require('assert');
 var bodyParser = require('body-parser');
-var session = require('client-sessions');
+var cookie = require('cookie');
+var cookieSignature = require('cookie-signature');
 var CloudDBInterface = require('./CloudMongoInterface.js');
 var WebSocket = require('nodejs-websocket');
 var DeviceSocketMap = require('./DeviceSocketMap.js');
 
 var app = express();
 app.use(bodyParser.json()); // allow express to parse json params
-app.use(session({
-  cookieName: 'session',
-  secret: 'random_string_goes_here',
-  duration: 30 * 60 * 1000,
-  activeDuration: 24 * 60 * 1000, //24 hours
+
+app.use(function(req, res, next) {
+ 
+    var sessionId = (req.body.hasOwnProperty('sessionId')) ? req.body.sessionId : null;
+    // if there was a session id passed add it to the cookies
+    if (sessionId) {
+        var header = req.headers.cookie;
+        // sign the cookie so Express Session unsigns it correctly
+        var signedCookie = 's:' + cookieSignature.sign(sessionId, 'keyboard cat');
+        req.headers.cookie = cookie.serialize('sessionId', signedCookie);
+    }
+    next(); 
+});
+
+app.use(expressSession({
+      'cookie': {
+          'httpOnly': false,
+          'maxAge': 1000 * 60 * 60 * 24 * 60
+      },
+      'name': 'sessionId',
+      'secret': 'keyboard cat',
+      'saveUninitialized': true,
+      'genid': function(req) {
+
+          var sessionId = (req.body.hasOwnProperty('sessionId')) ? req.body.sessionId : null;
+          return sessionId;
+      }
 }));
+
+app.use(express.static('Website'));
 
 var cloudDbInterface = new CloudDBInterface('127.0.0.1', 27017, 'CookSmartCloud');
 
@@ -25,7 +51,7 @@ app.use(function(req, res, next) {
 
 
 function isLoggedIn(req, res, next) {
-    if (req.session.user) {
+    if (req.session.hasOwnProperty('user') && req.session['user']) {
         next(req, res);
     } else {
         var response = {
@@ -56,8 +82,8 @@ function isDeviceConnected(req, res, next) {
     });   
 }
 
-app.get('/GetRecipes', function(req, res) {
-    var user = (req.session.user === null || req.session.user === undefined) ? null : req.session.user;
+app.post('/GetRecipes', function(req, res) {
+    var user = (!req.session.hasOwnProperty('user') || req.session.user == null) ? null : req.session.user;
     
     cloudDbInterface.getRecipes(user, function(recipes) {
         res.send({ status: "ok", msg: "", recipes: recipes}); //if we make it this far it succeeded.  
@@ -66,13 +92,14 @@ app.get('/GetRecipes', function(req, res) {
 
 app.post('/Login', function(req, res) {
     console.log('Login request occurred');
-    req.session.reset(); //session should be reset since the user is no longer logged in if this occurs.
+    if (req.session.hasOwnProperty('user')){
+        req.session['user'] = null;
+    }
     if (req.body.createAccount) {
-        
-        createAccount(req.body, res);
+        createAccount(req.body, req, res);
     } else {
         
-        login(req.body, res);
+        login(req.body, req, res);
     }
 });
 
@@ -96,20 +123,32 @@ app.post('/ConnectToDevice', isLoggedIn, function(req, res) {
     });
 });
 
-function createAccount(params, res) {
+app.post('/IsLoggedIn', function(req, res){
+    debugger;
+    res.send( {status: (req.session.user) ? true : false});
+});
+
+function createAccount(params, req, res) {
     if (!accountParamsValid(params)) {
         res.send({status: "fail", msg: "The fields you entered are invalid."});
     } else {
         cloudDbInterface.createAccount(params, function(result) {
             var status = (result.success) ? "ok" : "fail";
+            if (result.success) {
+                req.session['user'] = { username: params.username, deviceId: null };
+            }
             res.send({status: status, msg: result.msg});
         });  
     }
 }
 
-function login(credentials, res) {
-    cloudDbInterface.areLoginCredentialsValid(credentials, function(result) {
+function login(credentials, req, res) {
+    cloudDbInterface.areLoginCredentialsValid(credentials, function(user, result) {
         var status = (result.success) ? "ok" : "fail";
+        if (result.success) {
+            debugger;
+            req.session['user'] = { username: user.username, deviceId: user.deviceId };
+        }
         res.send({status: status, msg: result.msg});
     });
 }
@@ -133,7 +172,7 @@ app.post('/LoadRecipe', function(req, res, conn) {
     conn.send(JSON.stringify({ procedure: 'LoadRecipe', params: req.body.deviceParams }));
 });
 
-app.get('/GetDeviceStatus', isLoggedInAndDeviceConnected, function(req, res, conn) {
+app.post('/GetDeviceStatus', isLoggedInAndDeviceConnected, function(req, res, conn) {
     conn.on('text', function(text) {
         res.send(JSON.parse(text));
     });

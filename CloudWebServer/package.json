@@ -14,6 +14,9 @@
     "mongodb": "^2.1.7",
     "password-hash": "~1.2.2",
     "client-sessions": "~0.7.0",
-    "nodejs-websocket": "~1.5.0"
+    "nodejs-websocket": "~1.5.0",
+    "cookie": "~0.2.3",
+    "cookie-signature": "~1.0.6",
+    "express-session": "~1.13.0"
   }
 }

@@ -13,7 +13,7 @@ var CloudMongoInterface = function(address, port, dbName) {
  */
 CloudMongoInterface.prototype._getDbInstance = function(next) {
     MongoClient.connect(this.connectionString, function(err, db) {
-        debugger;
+        
         if (err === null) {
             next(db);
         } else {
@@ -34,9 +34,9 @@ CloudMongoInterface.prototype._addUser = function(user, next) {
     var self = this;
     this._getDbInstance(function(db) {
         var collection = self._getDbCollection(db, USER_COLLECTION);
-        debugger;
+        
         collection.insertOne({ username: user.username, password: passwordHash.generate(user.password), displayName: user.displayName, connectedDevice: null }, function(err, item) {
-            debugger;
+            
             if (err === null) {
                 next(item.insertedCount === 1);
             } else {
@@ -51,9 +51,9 @@ CloudMongoInterface.prototype._getUser = function(username, next) {
     var self = this;
     this._getDbInstance(function(db) {
         var collection = self._getDbCollection(db, USER_COLLECTION);
-        debugger;
+        
         collection.findOne({ username: username }, function(err, item) {
-            debugger;
+            
             if (err === null) {
                 next(item);
             } else {
@@ -83,7 +83,7 @@ CloudMongoInterface.prototype.areLoginCredentialsValid = function(user, next) {
         if (result === null || !passwordHash.verify(user.password, result.password)) {
             next(formatResult(false, "invalid login"));
         } else {
-            next(formatResult(true, ""));
+            next(result, formatResult(true, ""));
         }
     });
 };

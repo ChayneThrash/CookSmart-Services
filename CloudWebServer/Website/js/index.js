@@ -1,7 +1,5 @@
 var app = {
     
-    server: 'http://192.168.1.31:8080',
-    
     initialize: function() {
         this.bindEvents();
     },
@@ -26,7 +24,7 @@ var app = {
     
     checkIsLoggedIn: function() {
         $.ajax({
-            url: this.server + '/IsLoggedIn',
+            url: '/IsLoggedIn',
             type: "GET",
             success: function(response) {
                 alert(JSON.stringify(response));
@@ -65,7 +63,7 @@ var app = {
         if (app.server === null) {
             alert('Please wait until hub has been connected.');
         } else {
-            $.getJSON('http://' + app.server + ':' + app.serverPort + '/GetDeviceStatus', function(response) {
+            $.getJSON('/GetDeviceStatus', function(response) {
                     if (response.status === "ok") {
                    $("#device-status-text").text("Device status: " + response.deviceStatus);
                    var buttonProperties = {
