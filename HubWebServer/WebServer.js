@@ -1,6 +1,7 @@
 var assert = require('assert');
 var DeviceInterface = require('./DeviceInterface.js');
 var cookSmartRecipes = require('./CookSmartRecipes.js')
+var recipeValidator = require('./RecipeValidator.js');
 var wifiConnector = require('./WiFiConnector.js');
 var deviceInterface = new DeviceInterface();
 var ws = require('nodejs-websocket')
@@ -9,7 +10,7 @@ var ws = require('nodejs-websocket')
 function LoadRecipe(conn, params) {
     console.log('LoadRecipe');
     var recipe = params.recipe;
-    if (cookSmartRecipes.isValid(recipe)) {
+    if (recipeValidator.isValid(recipe)) {
         var formattedRecipe = cookSmartRecipes.format(recipe);
         console.log(JSON.stringify({ formatted: formattedRecipe }));
         

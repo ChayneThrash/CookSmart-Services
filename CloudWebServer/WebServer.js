@@ -39,15 +39,7 @@ app.use(expressSession({
       }
 }));
 
-app.use(express.static('Website'));
-
 var cloudDbInterface = new CloudDBInterface('127.0.0.1', 27017, 'CookSmartCloud');
-
-app.use(function(req, res, next) {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-  next();
-});
 
 
 function isLoggedIn(req, res, next) {
@@ -172,25 +164,19 @@ app.listen(8080, function () {
 
 app.post('/LoadRecipe', function(req, res) {
     var conn = DeviceSocketMap.getConnectedDevice(req.session.user.deviceId);
-    conn.on('text', function(text) {
-        res.send(JSON.parse(text));
-    });
+    conn['res'] = res;
     conn.send(JSON.stringify({ status: "ok", deviceParams: { procedure: 'LoadRecipe', params: req.body.deviceParams } }));
 });
 
 app.post('/GetDeviceStatus', isLoggedInAndDeviceConnected, function(req, res) {
     var conn = DeviceSocketMap.getConnectedDevice(req.session.user.deviceId);
-    conn.on('text', function(text) {
-        res.send(JSON.parse(text));
-    });
+    conn['res'] = res;
     conn.send(JSON.stringify({ status: "ok", deviceParams: { procedure: 'GetDeviceStatus', params: req.body.deviceParams } }));
 });
 
 app.post('/SetWifiCredentials', isLoggedInAndDeviceConnected, function(req, res) {
     var conn = DeviceSocketMap.getConnectedDevice(req.session.user.deviceId);
-    conn.on('text', function(text) {
-        res.send(JSON.parse(text));
-    });
+    conn['res'] = res;
     conn.send(JSON.stringify({ status: "ok", deviceParams: { procedure: 'SetWifiCredentials', params: req.body.deviceParams } }));
 });
 
@@ -200,15 +186,20 @@ var deviceServer = WebSocket.createServer(function(conn) {
         var params = JSON.parse(text);
         if (params.hasOwnProperty('procedure')){
             if(params.procedure === 'connectDevice' && params.hasOwnProperty('deviceId')) {
-                DeviceSocketMap.connectDevice(params.deviceId, conn);
+                deviceId = params.deviceId; // we save this for the on close event.
+                DeviceSocketMap.connectDevice(params.deviceId, this);
                 console.log('device connected.');
-                deviceId = params.deviceId;
                 conn.send(JSON.stringify({procedure: "connectDevice", status: "ok"}));
             }
+        } else if (this.hasOwnProperty('res') && this.res != null){ // hack because changing the on text callback causes strange errors.
+            this.res.send(params); // this will handle responses from the device since it will never have a procedure field in the json.
+                                   // this only works because the device never sends first except when connecting so the res field will get set before
+                                   // any queries/instructions.
+            this.res = null; //we don't want this object lingering around.
         }
     });
     conn.on('close', function() {
-        if (deviceId !== undefined && deviceId !== null) { // check if device ever sent the connection request
+        if (deviceId != null) { // check if device ever sent the connection request
             DeviceSocketMap.removeConnection(deviceId); // remove it from the hash
             console.log('device disconneced');
         }

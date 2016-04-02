@@ -99,7 +99,15 @@ CloudMongoInterface.prototype.getRecipes = function(user, next) {
         }
         collection.find( { $or: orQueryList } ).toArray(function(err, item) {
             if (err === null) {
-                next(item);
+                var recipes = [];
+                for(var i = 0; i < item.length; ++i) {
+                    recipes.push({
+                        name: item[i].Name,
+                        instructions: item[i].instructions,
+                        isDefault: (item[i].user == null)
+                    });
+                }
+                next(recipes);
             } else {
                 throw "Error occurred getting recipes.";
             }
