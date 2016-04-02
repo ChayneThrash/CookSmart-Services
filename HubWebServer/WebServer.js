@@ -58,20 +58,29 @@ function processMessage(conn, params) {
 }
 
 var deviceId = 'device1'; //hardcoding something here for now.
+
 function connectToCookSmartServer() {
     console.log('connecting');
-    var conn = ws.connect('ws://cthrash.local:8082', function(){
-        conn.on('text', function(text){ // going ahead and setting it up to handle connectDevice response.
-            var response = JSON.parse(text);
-            if (response.status === 'ok') {
-                conn.on('text', function(str){
-                    processMessage(conn, JSON.parse(str));
-                });
-            } else {
-                setTimeout(connectToCookSmartServer, msBetweenConnectionAttempts); // failed to connect so set it up to try again.
-            }
-        });
-        conn.send(JSON.stringify({procedure: 'connectDevice', deviceId: deviceId}));
+    var conn = ws.connect('ws://cthrash.local:8082');
+    conn.on('connect', function(){
+        conn.send(JSON.stringify({procedure: 'connectDevice', deviceId: deviceId}));    
+    });
+    conn.on('text', function(text) { // going ahead and setting it up to handle connectDevice response.
+        var response = JSON.parse(text);
+        if (response.status === 'ok') {
+            conn.on('text', function(str){
+                processMessage(conn, JSON.parse(str));
+            });
+        } else {
+            conn.close(); //there was an error. reconnect.
+        }
+    });
+    conn.on('close', function() {
+        console.log('disconnected');
+        setTimeout(connectToCookSmartServer, msBetweenConnectionAttempts); // Need to attempt to reconnect occasionally.
+    });
+    conn.on('error', function(err) {
+         //don't do anything. just let it pass on to close.
     });
 }
 

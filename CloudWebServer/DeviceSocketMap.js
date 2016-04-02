@@ -5,8 +5,8 @@ DeviceSocketMap = {
         return this.deviceIdSocketHash.hasOwnProperty(deviceId);
     },
     
-    getDeviceConnection: function(deviceId) {
-        return deviceIdSocketHash[deviceId];
+    getConnectedDevice: function(deviceId) {
+        return this.deviceIdSocketHash[deviceId];
     },
     
     connectDevice: function(deviceId, socket) {

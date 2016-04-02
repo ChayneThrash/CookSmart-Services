@@ -81,7 +81,7 @@ CloudMongoInterface.prototype.createAccount = function(user, next) {
 CloudMongoInterface.prototype.areLoginCredentialsValid = function(user, next) {
     this._getUser(user.username, function(result) {
         if (result === null || !passwordHash.verify(user.password, result.password)) {
-            next(formatResult(false, "invalid login"));
+            next(result, formatResult(false, "invalid login"));
         } else {
             next(result, formatResult(true, ""));
         }
@@ -159,9 +159,8 @@ CloudMongoInterface.prototype.createRecipe = function(user, recipeName, instruct
 };
 
 CloudMongoInterface.prototype.userIsConnectedToDevice = function(user, deviceId, next) {
-    var self = this;
-    this._getUser(user.username, function(result) {
-        next(result !== null && result.deviceId === deviceId);       
+    this._getUser(user, function(result) {
+        next(result != null && result.connectedDevice === deviceId);       
     });
 }
 

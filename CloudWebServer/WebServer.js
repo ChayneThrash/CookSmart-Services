@@ -52,7 +52,7 @@ app.use(function(req, res, next) {
 
 function isLoggedIn(req, res, next) {
     if (req.session.hasOwnProperty('user') && req.session['user']) {
-        next(req, res);
+        next();
     } else {
         var response = {
             status: "fail",
@@ -69,10 +69,12 @@ function isLoggedInAndDeviceConnected(req, res, next) {
 }
 
 function isDeviceConnected(req, res, next) {
-    cloudDBInterface.userIsConnectedToDevice(req.session.user, req.body.deviceId, function(connected) {
+    var username = req.session.user.username;
+    cloudDbInterface.userIsConnectedToDevice(username, req.body.deviceId, function(connected) {
         if (connected) {
             if (DeviceSocketMap.deviceConnected(req.body.deviceId)) {
-                next(req, res, DeviceSocketMap.getConnecedDevice(deviceId));
+                debugger;
+                next();
             } else {
               res.send({status: "fail", msg: "device is not connected to the server."});
             }
@@ -81,6 +83,11 @@ function isDeviceConnected(req, res, next) {
         }
     });   
 }
+
+app.post('/IsDeviceConnected', isLoggedInAndDeviceConnected, function(req, res) {
+    debugger;
+    res.send({ status: "ok", msg: "" });
+});
 
 app.post('/GetRecipes', function(req, res) {
     var user = (!req.session.hasOwnProperty('user') || req.session.user == null) ? null : req.session.user;
@@ -124,7 +131,6 @@ app.post('/ConnectToDevice', isLoggedIn, function(req, res) {
 });
 
 app.post('/IsLoggedIn', function(req, res){
-    debugger;
     res.send( {status: (req.session.user) ? true : false});
 });
 
@@ -137,7 +143,7 @@ function createAccount(params, req, res) {
             if (result.success) {
                 req.session['user'] = { username: params.username, deviceId: null };
             }
-            res.send({status: status, msg: result.msg});
+            res.send({status: status, msg: result.msg, user: { username: params.username, deviceId: null }});
         });  
     }
 }
@@ -146,10 +152,9 @@ function login(credentials, req, res) {
     cloudDbInterface.areLoginCredentialsValid(credentials, function(user, result) {
         var status = (result.success) ? "ok" : "fail";
         if (result.success) {
-            debugger;
-            req.session['user'] = { username: user.username, deviceId: user.deviceId };
+            req.session['user'] = { username: user.username, deviceId: user.connectedDevice };
         }
-        res.send({status: status, msg: result.msg});
+        res.send({status: status, msg: result.msg, user: req.session.user});
     });
 }
 
@@ -165,21 +170,24 @@ app.listen(8080, function () {
     console.log('CookSmart server is listening on port 8080.');
 });
 
-app.post('/LoadRecipe', function(req, res, conn) {
+app.post('/LoadRecipe', function(req, res) {
+    var conn = DeviceSocketMap.getConnectedDevice(req.session.user.deviceId);
     conn.on('text', function(text) {
         res.send(JSON.parse(text));
     });
     conn.send(JSON.stringify({ procedure: 'LoadRecipe', params: req.body.deviceParams }));
 });
 
-app.post('/GetDeviceStatus', isLoggedInAndDeviceConnected, function(req, res, conn) {
+app.post('/GetDeviceStatus', isLoggedInAndDeviceConnected, function(req, res) {
+    var conn = DeviceSocketMap.getConnectedDevice(req.session.user.deviceId);
     conn.on('text', function(text) {
         res.send(JSON.parse(text));
     });
     conn.send(JSON.stringify({ procedure: 'GetDeviceStatus', params: req.body.deviceParams }));
 });
 
-app.post('/SetWifiCredentials', isLoggedInAndDeviceConnected, function(req, res, conn) {
+app.post('/SetWifiCredentials', isLoggedInAndDeviceConnected, function(req, res) {
+    var conn = DeviceSocketMap.getConnectedDevice(req.session.user.deviceId);
     conn.on('text', function(text) {
         res.send(JSON.parse(text));
     });
