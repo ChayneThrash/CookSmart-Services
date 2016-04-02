@@ -36,6 +36,7 @@ function LoadRecipe(conn, params) {
 
 function GetDeviceStatus(conn, params) {
     console.log('Get device status.');
+    debugger;
     var status = deviceInterface.getDeviceStatus();
     conn.send(JSON.stringify({
         status: "ok",
@@ -68,9 +69,9 @@ function connectToCookSmartServer() {
     conn.on('text', function(text) { // going ahead and setting it up to handle connectDevice response.
         var response = JSON.parse(text);
         if (response.status === 'ok') {
-            conn.on('text', function(str){
-                processMessage(conn, JSON.parse(str));
-            });
+            if (response.hasOwnProperty('deviceParams')){
+                processMessage(this, response.deviceParams);   
+            }
         } else {
             conn.close(); //there was an error. reconnect.
         }
@@ -80,6 +81,7 @@ function connectToCookSmartServer() {
         setTimeout(connectToCookSmartServer, msBetweenConnectionAttempts); // Need to attempt to reconnect occasionally.
     });
     conn.on('error', function(err) {
+        console.log(JSON.stringify(err));
          //don't do anything. just let it pass on to close.
     });
 }

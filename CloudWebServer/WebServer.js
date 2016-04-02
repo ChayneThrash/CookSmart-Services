@@ -175,7 +175,7 @@ app.post('/LoadRecipe', function(req, res) {
     conn.on('text', function(text) {
         res.send(JSON.parse(text));
     });
-    conn.send(JSON.stringify({ procedure: 'LoadRecipe', params: req.body.deviceParams }));
+    conn.send(JSON.stringify({ status: "ok", deviceParams: { procedure: 'LoadRecipe', params: req.body.deviceParams } }));
 });
 
 app.post('/GetDeviceStatus', isLoggedInAndDeviceConnected, function(req, res) {
@@ -183,7 +183,7 @@ app.post('/GetDeviceStatus', isLoggedInAndDeviceConnected, function(req, res) {
     conn.on('text', function(text) {
         res.send(JSON.parse(text));
     });
-    conn.send(JSON.stringify({ procedure: 'GetDeviceStatus', params: req.body.deviceParams }));
+    conn.send(JSON.stringify({ status: "ok", deviceParams: { procedure: 'GetDeviceStatus', params: req.body.deviceParams } }));
 });
 
 app.post('/SetWifiCredentials', isLoggedInAndDeviceConnected, function(req, res) {
@@ -191,7 +191,7 @@ app.post('/SetWifiCredentials', isLoggedInAndDeviceConnected, function(req, res)
     conn.on('text', function(text) {
         res.send(JSON.parse(text));
     });
-    conn.send(JSON.stringify({ procedure: 'SetWifiCredentials', params: req.body.deviceParams }));
+    conn.send(JSON.stringify({ status: "ok", deviceParams: { procedure: 'SetWifiCredentials', params: req.body.deviceParams } }));
 });
 
 var deviceServer = WebSocket.createServer(function(conn) {
