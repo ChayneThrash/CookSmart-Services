@@ -10,6 +10,7 @@ var ws = require('nodejs-websocket')
 function LoadRecipe(conn, params) {
     console.log('LoadRecipe');
     var recipe = params.recipe;
+    debugger;
     if (recipeValidator.isValid(recipe)) {
         var formattedRecipe = cookSmartRecipes.format(recipe);
         console.log(JSON.stringify({ formatted: formattedRecipe }));
@@ -53,9 +54,9 @@ function SetWifiCredentials(conn, params) {
 
 function processMessage(conn, params) {
     switch (params.procedure) {
-        case 'LoadRecipe': LoadRecipe(conn, params); break;
-        case 'GetDeviceStatus': GetDeviceStatus(conn, params); break;
-        case 'SetWifiCredentials': SetWifiCredentials(conn, params); break;
+        case 'LoadRecipe': LoadRecipe(conn, params.params); break;
+        case 'GetDeviceStatus': GetDeviceStatus(conn, params.params); break;
+        case 'SetWifiCredentials': SetWifiCredentials(conn, params.params); break;
     }
 }
 
@@ -63,7 +64,7 @@ var deviceId = 'device1'; //hardcoding something here for now.
 
 function connectToCookSmartServer() {
     console.log('connecting');
-    var conn = ws.connect('ws://cthrash.local:8082');
+    var conn = ws.connect('ws://cooksmart.ddns.net:8082');
     conn.on('connect', function(){
         conn.send(JSON.stringify({procedure: 'connectDevice', deviceId: deviceId}));    
     });
