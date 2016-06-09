@@ -1,4 +1,5 @@
 var MongoClient = require('mongodb').MongoClient;
+var ObjectID = require('mongodb').ObjectID;
 var passwordHash = require('password-hash');
 
 var USER_COLLECTION = "Users";
@@ -38,9 +39,9 @@ CloudMongoInterface.prototype._addUser = function(user, next) {
         collection.insertOne({ username: user.username, password: passwordHash.generate(user.password), displayName: user.displayName, connectedDevice: null }, function(err, item) {
             
             if (err === null) {
-                next(item.insertedCount === 1);
+                next(item.insertedCount === 1, item);
             } else {
-                throw "Error occurred adding user.";
+                next(false, null);
             }
             db.close();
         });
@@ -57,7 +58,7 @@ CloudMongoInterface.prototype._getUser = function(username, next) {
             if (err === null) {
                 next(item);
             } else {
-                throw "Error occurred checking if user exists.";
+                next(null);
             }
             db.close();
         });
@@ -68,12 +69,12 @@ CloudMongoInterface.prototype.createAccount = function(user, next) {
     var self = this;
     this._getUser(user.username, function(result) {
        if (result === null) {
-            self._addUser(user, function(result) {
+            self._addUser(user, function(result, addedUser) {
                 var msg = (result) ? "" : "Failed to add the user.";
-                next(formatResult(result, msg));
+                next(formatResult(result, msg), addedUser);
             });
        } else {
-            next(formatResult(false, "user already exists."));
+            next(formatResult(false, "user already exists."), null);
        }
     });
 };
@@ -122,7 +123,7 @@ CloudMongoInterface.prototype._getRecipe = function(user, recipeName, next) {
     }
     var self = this;
     this._getDbInstance(function(db) {
-        var collection = self._getDBCollection(db, RECIPE_COLLECTION);
+        var collection = self._getDbCollection(db, RECIPE_COLLECTION);
         collection.findOne({ 'user.$id' : user.id, Name : recipeName }, function(err, item) {
             if (err === null) {
                 next(item);
@@ -145,7 +146,46 @@ CloudMongoInterface.prototype._addRecipe = function(user, recipeName, instructio
             if (err === null) {
                 next(item.insertedCount === 1);
             } else {
-                throw "Error occurred adding recipe.";
+                next(false);
+            }
+            db.close();
+        });
+    });
+};
+
+CloudMongoInterface.prototype._updateRecipe = function(user, newName, recipeName, instructions, next) {
+    var self = this;
+    this._getDbInstance(function(db) {
+        var collection = self._getDbCollection(db, RECIPE_COLLECTION);
+        var userRef = {
+            $ref : USER_COLLECTION,
+            $id : user.id
+        };
+        collection.updateOne({ Name: recipeName, user: userRef }, { "$set" : { Name: newName, instructions: instructions } }, function(err, item) {
+            if (err === null) {
+                next(item.result.n === 1);
+            } else {
+                next(false);
+            }
+            db.close();
+        });
+    });
+};
+
+CloudMongoInterface.prototype._deleteRecipe = function(user, name, next) {
+    var self = this;
+    this._getDbInstance(function(db) {
+        var collection = self._getDbCollection(db, RECIPE_COLLECTION);
+        var userRef = {
+            $ref : USER_COLLECTION,
+            $id : user.id
+        };
+        collection.remove({ Name: name, user: userRef }, { w : 1}, function(err, numRemoved) {
+            debugger;
+            if (err === null) {
+                next(numRemoved.result.n === 1);
+            } else {
+                next(false);
             }
             db.close();
         });
@@ -161,10 +201,38 @@ CloudMongoInterface.prototype.createRecipe = function(user, recipeName, instruct
                 next(formatResult(result, msg));
             });
         } else {
-            next(false, "recipe with that name already exists");
+            next(formatResult(false, "recipe with that name already exists"));
         }
     });
 };
+
+CloudMongoInterface.prototype.editRecipe = function(user, newName, currentName, instructions, next) {
+    var self = this;
+    this._getRecipe(user, currentName, function(recipe){
+        if (recipe != null) {
+            self._updateRecipe(user, newName, currentName, instructions, function(result){
+                var msg = (result) ? "" : "Unable to edit recipe.";
+                next(formatResult(result, msg));   
+            });
+        } else {
+            next(formatResult(false, "Recipe does not exist"));
+        }
+    });
+}
+
+CloudMongoInterface.prototype.deleteRecipe = function(user, name, next) {
+    var self = this;
+    this._getRecipe(user, name, function(recipe){
+        if (recipe != null) {
+            self._deleteRecipe(user, name, function(result) {
+                var msg = (result) ? "" : "Unable to delete recipe.";
+                next(formatResult(result, msg));   
+            });
+        } else {
+            next(formatResult(false, "Recipe does not exist"));
+        }
+    });
+}
 
 CloudMongoInterface.prototype.userIsConnectedToDevice = function(user, deviceId, next) {
     this._getUser(user, function(result) {
@@ -174,10 +242,12 @@ CloudMongoInterface.prototype.userIsConnectedToDevice = function(user, deviceId,
 
 CloudMongoInterface.prototype.connectUserToDevice = function(user, deviceId, next) {
     var self = this;
+    debugger;
     this._getDbInstance(function(db) {
        var collection = self._getDbCollection(db, USER_COLLECTION);
-       collection.update({ _id : user._id }, { "$set" : { connectedDevice : deviceId }}, function(err, result) {
-            if (err == null || result != 1) {
+       collection.updateOne({ _id : new ObjectID(user.id) }, { "$set" : { connectedDevice : deviceId }}, function(err, result) {
+            debugger;
+            if (err != null || result.result.n != 1) {
                 next(formatResult(false, "couldn't add device id to account"));
             } else {
                 next(formatResult(true, ""));

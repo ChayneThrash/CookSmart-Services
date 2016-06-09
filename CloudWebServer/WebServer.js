@@ -7,6 +7,7 @@ var cookieSignature = require('cookie-signature');
 var CloudDBInterface = require('./CloudMongoInterface.js');
 var WebSocket = require('nodejs-websocket');
 var DeviceSocketMap = require('./DeviceSocketMap.js');
+var RecipeValidator = require('./RecipeValidator.js');
 
 var app = express();
 app.use(bodyParser.json()); // allow express to parse json params
@@ -43,7 +44,7 @@ var cloudDbInterface = new CloudDBInterface('127.0.0.1', 27017, 'CookSmartCloud'
 
 
 function isLoggedIn(req, res, next) {
-    if (req.session.hasOwnProperty('user') && req.session['user']) {
+    if (req.session.hasOwnProperty('user') && req.session['user'] != null) {
         next();
     } else {
         var response = {
@@ -102,6 +103,35 @@ app.post('/Login', function(req, res) {
     }
 });
 
+app.post('/Logout', function(req, res) {
+    req.session['user'] = null;
+    res.send({ status: "ok" });
+});
+
+app.post('/EditRecipe', isLoggedIn, function(req, res) {
+    console.log('Edit recipe request occurred');
+    if (recipeRequestIsValid(req.body) && req.body.hasOwnProperty('newName') && req.body.newName.length > 0) {
+        cloudDbInterface.editRecipe(req.session.user, req.body.newName, req.body.name, req.body.instructions, function(result){
+            var status = (result.success) ? "ok" : "fail";
+            res.send( { status: status, msg: result.message } );
+        });
+    } else {
+        res.send( { status: "fail", msg: "invalid parameters" } );
+    }
+});
+
+app.post('/DeleteRecipe', isLoggedIn, function(req, res) {
+    console.log('Delete recipe request occurred');
+    if (req.body.hasOwnProperty('name') && req.body.name.length > 0) {
+        cloudDbInterface.deleteRecipe(req.session.user, req.body.name, function(result){
+            var status = (result.success) ? "ok" : "fail";
+            res.send( { status: status, msg: result.message } );
+        });
+    } else {
+        res.send( { status: "fail", msg: "invalid parameters" } );
+    }
+});
+
 app.post('/CreateRecipe', isLoggedIn, function(req, res) {
     console.log('Create recipe request occurred');
     if (recipeRequestIsValid(req.body)) {
@@ -110,13 +140,23 @@ app.post('/CreateRecipe', isLoggedIn, function(req, res) {
         cloudDbInterface.createRecipe(req.session.user, name, instructions, function(result) {
             var status = (result.success) ? "ok" : "fail";
             res.send( { status: status, msg: result.message } );
-        });   
+        });
+    } else {
+        res.send( { status: "fail", msg: "invalid parameters" } );
     }
 });
+
+function recipeRequestIsValid(recipeRequest) {
+    return recipeRequest.hasOwnProperty('name')
+        && recipeRequest.hasOwnProperty('instructions')
+        && recipeRequest.name.length > 0
+        && RecipeValidator.isValid(recipeRequest.instructions);
+}
 
 app.post('/ConnectToDevice', isLoggedIn, function(req, res) {
     console.log('connect to device request occurred');
     cloudDbInterface.connectUserToDevice(req.session.user, req.body.deviceId, function(result){
+        req.session.user['deviceId'] = req.body.deviceId;
         var status = (result.success) ? "ok" : "fail";
         res.send( { status: status, msg: result.message } );
     });
@@ -130,10 +170,10 @@ function createAccount(params, req, res) {
     if (!accountParamsValid(params)) {
         res.send({status: "fail", msg: "The fields you entered are invalid."});
     } else {
-        cloudDbInterface.createAccount(params, function(result) {
+        cloudDbInterface.createAccount(params, function(result, addedUser) {
             var status = (result.success) ? "ok" : "fail";
             if (result.success) {
-                req.session['user'] = { username: params.username, deviceId: null };
+                req.session['user'] = { username: params.username, deviceId: null, id: addedUser.insertedId };
             }
             res.send({status: status, msg: result.msg, user: { username: params.username, deviceId: null }});
         });  
@@ -144,7 +184,7 @@ function login(credentials, req, res) {
     cloudDbInterface.areLoginCredentialsValid(credentials, function(user, result) {
         var status = (result.success) ? "ok" : "fail";
         if (result.success) {
-            req.session['user'] = { username: user.username, deviceId: user.connectedDevice };
+            req.session['user'] = { username: user.username, deviceId: user.connectedDevice, id: user._id };
         }
         res.send({status: status, msg: result.msg, user: req.session.user});
     });
@@ -162,7 +202,7 @@ app.listen(8080, function () {
     console.log('CookSmart server is listening on port 8080.');
 });
 
-app.post('/LoadRecipe', function(req, res) {
+app.post('/LoadRecipe', isLoggedInAndDeviceConnected, function(req, res) {
     var conn = DeviceSocketMap.getConnectedDevice(req.session.user.deviceId);
     conn['res'] = res;
     conn.send(JSON.stringify({ status: "ok", deviceParams: { procedure: 'LoadRecipe', params: req.body.deviceParams } }));
@@ -180,13 +220,22 @@ app.post('/SetWifiCredentials', isLoggedInAndDeviceConnected, function(req, res)
     conn.send(JSON.stringify({ status: "ok", deviceParams: { procedure: 'SetWifiCredentials', params: req.body.deviceParams } }));
 });
 
+app.post('/StopDevice', isLoggedInAndDeviceConnected, function(req, res) {
+    var conn = DeviceSocketMap.getConnectedDevice(req.session.user.deviceId);
+    conn['res'] = res;
+    conn.send(JSON.stringify({ status: "ok", deviceParams: { procedure: 'StopDevice', params: req.body.deviceParams } }));
+});
+
 var deviceServer = WebSocket.createServer(function(conn) {
-    var deviceId;
     conn.on('text', function(text) {
         var params = JSON.parse(text);
         if (params.hasOwnProperty('procedure')){
             if(params.procedure === 'connectDevice' && params.hasOwnProperty('deviceId')) {
-                deviceId = params.deviceId; // we save this for the on close event.
+                this['deviceId'] = params.deviceId; // we save this for the on close event.
+                if (DeviceSocketMap.deviceConnected(params.deviceId)) {
+                    DeviceSocketMap.getConnectedDevice(params.deviceId).close(); // If the appliance loses internet, it won't close the socket.
+                                                                                 // If that happened, we need to close it when it reconnects. 
+                }
                 DeviceSocketMap.connectDevice(params.deviceId, this);
                 console.log('device connected.');
                 conn.send(JSON.stringify({procedure: "connectDevice", status: "ok"}));
@@ -199,9 +248,12 @@ var deviceServer = WebSocket.createServer(function(conn) {
         }
     });
     conn.on('close', function() {
-        if (deviceId != null) { // check if device ever sent the connection request
-            DeviceSocketMap.removeConnection(deviceId); // remove it from the hash
+        if (this.hasOwnProperty('deviceId') && this.deviceId != null) { // check if device ever sent the connection request
+            DeviceSocketMap.removeConnection(this.deviceId); // remove it from the hash
             console.log('device disconneced');
         }
+    });
+    conn.on('error', function(err) {
+        console.log(JSON.stringify(err));
     });
 }).listen(8082);
